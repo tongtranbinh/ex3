@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CNWeb - Ex3</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      @media (max-width: 800px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Search Bar */
+      .search-bar {
+        margin-bottom: 15px;
+        display: grid;
+        grid-template-columns: 1fr 160px;
+        gap: 12px;
+        align-items: end;
+      }
+
+      @media (max-width: 800px) {
+        .search-bar {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .search-bar input {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        outline: none;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      @media (max-width: 800px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: #333;
+        margin-bottom: 6px;
+      }
+
+      /* Table */
+      table,
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border: 1px solid #ddd;
+      }
+
+      th {
+        background: #4CAF50;
+        color: white;
+        font-weight: bold;
+      }
+
+      tr:nth-child(even) {
+        background: #f9f9f9;
+      }
+
+      tr:hover {
+        background: #f5f5f5;
+      }
+
+      /* Buttons */
+      button {
+        padding: 8px 16px;
+        margin: 0 4px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        background: #e5e7eb;
+      }
+
+      button.primary {
+        background: #4CAF50;
+        color: #fff;
+      }
+
+      button.danger {
+        background: #ef4444;
+        color: #fff;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 999;
+      }
+
+      .modal {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        width: 100%;
+        max-width: 600px;
+      }
+
+      .modal h2 {
+        margin-bottom: 12px;
+        color: #333;
+      }
+
+      .error {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        border-radius: 4px;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+
+      .footer {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- React CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Babel CDN (để chạy JSX trực tiếp trong browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- React code -->
+    <script type="text/babel">
+      const API_BASE = "https://ex3-lp49.onrender.com";
+
+      function prettyError(err) {
+        if (!err) return "Unknown error";
+        if (typeof err === "string") return err;
+        const prefix = err.status ? `[${err.status}] ` : "";
+        if (err.details && Array.isArray(err.details)) {
+          return prefix + err.details.join("\n");
+        }
+        if (err.error) return prefix + err.error;
+        if (err.message) return prefix + err.message;
+        try {
+          return prefix + JSON.stringify(err, null, 2);
+        } catch {
+          return prefix + String(err);
+        }
+      }
+
+      async function jsonFetch(url, options = {}) {
+        let res;
+        try {
+          res = await fetch(url, {
+            headers: {
+              "Content-Type": "application/json",
+              ...(options.headers || {}),
+            },
+            ...options,
+          });
+        } catch (e) {
+          throw {
+            status: 0,
+            error: "Network Error",
+            details: ["Không kết nối được backend"],
+            message: e?.message,
+          };
+        }
+
+        const text = await res.text();
+        const data = text ? (() => {
+          try {
+            return JSON.parse(text);
+          } catch {
+            return { error: text };
+          }
+        })() : null;
+
+        if (!res.ok) {
+          const errObj =
+            data && typeof data === "object"
+              ? data
+              : { error: data ? String(data) : res.statusText };
+          throw {
+            status: res.status,
+            statusText: res.statusText,
+            ...errObj,
+          };
+        }
+        return data;
+      }
+
+      function App() {
+        const [search, setSearch] = React.useState("");
+        const [page, setPage] = React.useState(1);
+        const [limit, setLimit] = React.useState(10);
+        const [totalPages, setTotalPages] = React.useState(1);
+        const [total, setTotal] = React.useState(0);
+        const [users, setUsers] = React.useState([]);
+        const [loading, setLoading] = React.useState(false);
+        const [error, setError] = React.useState(null);
+
+        const [isModalOpen, setIsModalOpen] = React.useState(false);
+        const [popup, setPopup] = React.useState(null);
+
+        const [editingId, setEditingId] = React.useState(null);
+        const [form, setForm] = React.useState({
+          name: "",
+          age: "",
+          email: "",
+          address: "",
+        });
+
+        const fetchUsers = React.useCallback(async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const q = new URLSearchParams({
+              page: String(page),
+              limit: String(limit),
+              search: search,
+            });
+            const data = await jsonFetch(`${API_BASE}/users?${q.toString()}`);
+            setUsers(data.users || []);
+            setTotal(data.total || 0);
+            setTotalPages(data.totalPages || 1);
+          } catch (e) {
+            setError(prettyError(e));
+            maybeShowPopup(e);
+          } finally {
+            setLoading(false);
+          }
+        }, [page, limit, search]);
+
+        React.useEffect(() => {
+          fetchUsers();
+        }, [fetchUsers]);
+
+        function resetForm() {
+          setEditingId(null);
+          setForm({ name: "", age: "", email: "", address: "" });
+        }
+
+        function openCreate() {
+          resetForm();
+          setIsModalOpen(true);
+        }
+
+        function closeModal() {
+          setIsModalOpen(false);
+          resetForm();
+        }
+
+        function closePopup() {
+          setPopup(null);
+        }
+
+        function maybeShowPopup(err) {
+          if (!err) return;
+          if (err.status === 0) {
+            setPopup({
+              title: "Lỗi kết nối",
+              message: "Không kết nối được backend. Vui lòng kiểm tra lại kết nối mạng hoặc đảm bảo backend đang chạy.",
+            });
+            return;
+          }
+
+          if (err.error === "Duplicate Email") {
+            setPopup({
+              title: "Email trùng",
+              message: "Email đã tồn tại. Vui lòng nhập email khác.",
+            });
+          }
+        }
+
+        async function onSubmit(e) {
+          e.preventDefault();
+          setError(null);
+          try {
+            const name = form.name.trim();
+            const email = form.email.trim();
+            const address = form.address.trim();
+            const ageNumber = Number(String(form.age).trim());
+
+            const payload = {
+              name,
+              age: ageNumber,
+              email,
+              ...(address ? { address } : {}),
+            };
+
+            if (editingId) {
+              await jsonFetch(`${API_BASE}/users/${editingId}`, {
+                method: "PUT",
+                body: JSON.stringify(payload),
+              });
+            } else {
+              await jsonFetch(`${API_BASE}/users`, {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+            }
+
+            setIsModalOpen(false);
+            resetForm();
+            fetchUsers();
+          } catch (e2) {
+            setError(prettyError(e2));
+            maybeShowPopup(e2);
+          }
+        }
+
+        function startEdit(u) {
+          setEditingId(u._id);
+          setForm({
+            name: u.name || "",
+            age: String(u.age ?? ""),
+            email: u.email || "",
+            address: u.address || "",
+          });
+          setIsModalOpen(true);
+        }
+
+        async function removeUser(id) {
+          if (!confirm("Xóa user này?")) return;
+          setError(null);
+          try {
+            await jsonFetch(`${API_BASE}/users/${id}`, { method: "DELETE" });
+            fetchUsers();
+          } catch (e) {
+            setError(prettyError(e));
+            maybeShowPopup(e);
+          }
+        }
+
+        function searchBar() {
+          return (
+            <div className="search-bar">
+              <div>
+                <label>Tìm kiếm</label>
+                <input
+                  value={search}
+                  placeholder="Nhập tên hoặc email..."
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              <div>
+                <label>Limit</label>
+                <input
+                  value={limit}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setLimit(Number.isFinite(v) && v > 0 ? v : 10);
+                    setPage(1);
+                  }}
+                  type="number"
+                  min="1"
+                />
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="container">
+            <div className="header">
+              <h1>CNWeb - Ex3</h1>
+
+              <div>
+                <button className="primary" type="button" onClick={openCreate} disabled={loading}>
+                  Tạo user
+                </button>
+                <button type="button" onClick={fetchUsers} disabled={loading}>
+                  {loading ? "Đang tải..." : "Reload"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              {searchBar()}
+              <div className="footer">
+                <div className="muted">
+                  Total: <b>{total}</b> • Page: <b>{page}</b>/<b>{totalPages}</b>
+                </div>
+                <div className="actions">
+                  <button
+                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                    disabled={loading || page <= 1}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={loading || page >= totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {isModalOpen && (
+              <div className="modal-overlay" onMouseDown={closeModal}>
+                <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+                  <h2>{editingId ? "Sửa user" : "Tạo user"}</h2>
+
+                  <form onSubmit={onSubmit}>
+                    <div className="row">
+                      <div>
+                        <label>Tên</label>
+                        <input
+                          value={form.name}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, name: e.target.value }))
+                          }
+                          placeholder="Nguyễn Văn A"
+                          required
+                          minLength={2}
+                        />
+                      </div>
+
+                      <div>
+                        <label>Tuổi</label>
+                        <input
+                          value={form.age}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, age: e.target.value }))
+                          }
+                          placeholder="20"
+                          type="number"
+                          min="0"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label>Email</label>
+                        <input
+                          value={form.email}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, email: e.target.value }))
+                          }
+                          placeholder="a@example.com"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label>Địa chỉ</label>
+                        <input
+                          value={form.address}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, address: e.target.value }))
+                          }
+                          placeholder="Hà Nội"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="actions">
+                      <button className="primary" type="submit" disabled={loading}>
+                        {editingId ? "Cập nhật" : "Tạo mới"}
+                      </button>
+                      <button type="button" onClick={closeModal} disabled={loading}>
+                        Hủy
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h1 style={{ marginBottom: 10, fontSize: 16 }}>Danh sách users</h1>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: 70 }}>STT</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th style={{ width: 170 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="muted">
+                        {loading ? "Đang tải..." : "Không có dữ liệu"}
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((u, idx) => (
+                      <tr key={u._id}>
+                        <td>{(page - 1) * limit + idx + 1}</td>
+                        <td>{u.name}</td>
+                        <td>{u.age}</td>
+                        <td>{u.email}</td>
+                        <td>{u.address || <span className="muted">(empty)</span>}</td>
+                        <td>
+                          <div className="actions" style={{ margin: 0 }}>
+                            <button type="button" onClick={() => startEdit(u)}>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="danger"
+                              onClick={() => removeUser(u._id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {error && <div className="error">{error}</div>}
+              {popup && (
+                <div className="modal-overlay" onMouseDown={closePopup}>
+                  <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+                    <h2>{popup.title}</h2>
+                    <div style={{ whiteSpace: "pre-wrap", marginBottom: 12 }}>{popup.message}</div>
+                    <div className="actions" style={{ marginTop: 0 }}>
+                      <button className="primary" type="button" onClick={closePopup}>
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
